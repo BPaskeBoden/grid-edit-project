@@ -13,7 +13,7 @@
                                     <div class="row">
                                         <div class="col-6"> Store: <span class="boldName">{{store.name}}</span></div>
                                         <div class="col-6">
-                                            <span><b-form-input
+                                            <span><span class="qtybox">{{store.qty}}</span><b-form-input
                                                 id="input-1"
                                                 v-model="store.qty"    
                                                 required>
@@ -106,5 +106,9 @@ li {list-style-type: none;}
     display: inline-block !important;
     width: 20% !important;
     padding: 1px 0px 1px 3px!important;
+}
+.qtybox{
+    padding: 0 3px;
+    color: green;
 }
 </style>

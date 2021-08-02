@@ -60,7 +60,12 @@
                 this.gridApi = params.api;
                 this.columnApi = params.columnApi;
             },
-            getSelectedRows() {
+            getSelectedRows() {                
+       
+                if(this.gridApi.getSelectedNodes().length===0)
+                {                 
+                    this.gridApi.selectAllFiltered();                                  
+                }
                 const selectedNodes = this.gridApi.getSelectedNodes();
                 const selectedData = selectedNodes.map( node => node.data );
 
@@ -76,7 +81,7 @@
                     return a1> b1? 1: -1;
                 });
                
-               const styleOptionList = [];
+              const styleOptionList = [];
           
               var jsonMsg = {};
               var styleOptions = []
@@ -142,6 +147,11 @@
               { field: 'allocatedUnits', sortable: true, editable: true }
                             
             ];
+
+        // fetch('https://dev-ist-api.bodendev.com/api/ist/v1/partner-stock')
+        //   .then(result => result.json())
+        //   .then(rowData => this.rowData = rowData);
+        // }
 
         fetch('https://localhost:5001/api/ist/v1/partner-stock')
           .then(result => result.json())

@@ -13,7 +13,7 @@
                                     <div class="row">
                                         <div class="col-6"> Store: <span class="boldName">{{store.name}}</span></div>
                                         <div class="col-6">
-                                            <span><span class="qtybox">{{store.qty}}</span><b-form-input
+                                            <span><span class="qtybox">{{store.unit}}</span><b-form-input
                                                 id="input-1"
                                                 v-model="store.qty"    
                                                 required>

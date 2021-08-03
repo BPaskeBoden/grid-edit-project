@@ -1,20 +1,30 @@
 <template>
   <div>
-<div>
-  <b-button v-b-modal.modal-1 @click="getSelectedRows()">Get Selected Row(s)</b-button>
+    <div>
+      <div class="header-button">
+        <b-button variant="primary" v-b-modal.modal-1 @click="getSelectedRows()">Allocation</b-button>
+        <b-button variant="success" v-b-modal.modal-2 @click="getSelectedRows()">Replenishment</b-button>
 
-  <b-modal id="modal-1" title="Stock">
-   
-    <EditForm :stock-data="this.stockselection" />
-   
-      <template v-slot:modal-footer="{ cancel }">
-        <b-button @click="cancel()">Cancel</b-button>
-      </template>
+        <b-button class="clear" @click="clearSelectedRows()">Clear</b-button>
 
-  </b-modal>
-</div>
+      </div>
+      <b-modal id="modal-1" title="Stock Allocation">      
+        <EditForm :stock-data="this.stockselection" />      
+          <template v-slot:modal-footer="{ cancel }">
+            <b-button @click="cancel()">Cancel</b-button>
+          </template>
+      </b-modal>
 
-    <ag-grid-vue style="width: 1400px; height: 800px;"
+      <b-modal id="modal-2" title="Stock Replenishment">      
+        <ReplenishmentForm :stock-data="this.stockselection" />      
+          <template v-slot:modal-footer="{ cancel }">
+            <b-button @click="cancel()">Cancel</b-button>
+          </template>
+      </b-modal>
+
+    </div>
+
+    <ag-grid-vue style="width: 1860px; height: 800px;"
         class="ag-theme-alpine"
         :columnDefs="columnDefs"
         :rowData="rowData"
@@ -28,7 +38,8 @@
 <script>
     import { AgGridVue } from "ag-grid-vue";
     import EditForm from '@/components/EditForm';
-
+    import ReplenishmentForm from '@/components/ReplenishmentForm';
+    
     export default {
         name: 'App',
         data() {
@@ -45,20 +56,27 @@
                     store: "",
                     style: "",
                     colour: "",
+                    unit: "",
                     qty: "",
-                    size: ""
+                    size: "",
+                    checked: true
                   }
                  ],         
             }
         },
         components: {
             AgGridVue,
-            EditForm
+            EditForm,
+            ReplenishmentForm
         },
         methods: {
             onGridReady(params) {
                 this.gridApi = params.api;
                 this.columnApi = params.columnApi;
+            },
+            clearSelectedRows()
+            {
+              this.gridApi.deselectAll();
             },
             getSelectedRows() {                
        
@@ -104,7 +122,7 @@
                   var stores = []
                  jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores = stores;
                  jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores
-                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores.push({name: selectedData[i].store, qty: selectedData[0].allocatedUnits});
+                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores.push({name: selectedData[i].store, unit: selectedData[0].allocatedUnits, qty: selectedData[0].qty});
 
                 }else{
                   // get current style node
@@ -123,7 +141,7 @@
                    //add new store name if it does not exist
                   if(!_isContains(currentSizeNode, "name", selectedData[i].store))
                   {
-                    currentSizeNode.stores.push({name: selectedData[i].store, qty: selectedData[i].allocatedUnits});
+                    currentSizeNode.stores.push({name: selectedData[i].store, unit: selectedData[i].allocatedUnits, qty: selectedData[i].qty});
                   }
 
                 }
@@ -138,14 +156,18 @@
         },
         beforeMount() {
             this.columnDefs = [
-              {field: 'partnerStockId', sortable: true, filter: true, checkboxSelection: true},
-              { field: 'productSKU', sortable: true, filter: true },
-              { field: 'store', sortable: true, filter: true },
-              { field: 'styleOption', sortable: true, filter: true },
-              { field: 'colourDesc', sortable: true, filter: true },
-              { field: 'sizeCode', sortable: true, filter: true },
-              { field: 'allocatedUnits', sortable: true, editable: true }
-                            
+              {field: 'partnerStockId', sortable: true, filter: true, checkboxSelection: true, headerName: "Id", width: 160},   
+              { field: 'division', sortable: true, filter: true, headerName: "Div", width: 160 },           
+              { field: 'segment', sortable: true, filter: true, headerName: "Seg", width: 160 },                
+              { field: 'department', sortable: true, filter: true, headerName: "Dpt", width: 160 }, 
+              { field: 'category', sortable: true, filter: true, headerName: "Cat", width: 160 },   
+              { field: 'productSKU', sortable: true, filter: true, headerName: "SKU", width: 160 },  
+              { field: 'store', sortable: true, filter: true, headerName: "Store", width: 160 },  
+              { field: 'styleOption', sortable: true, filter: true, headerName: "Opt", width: 160 },  
+              { field: 'colourDesc', sortable: true, filter: true, headerName: "Col", width: 160 },  
+              { field: 'sizeCode', sortable: true, filter: true, headerName: "Size", width: 160 },  
+              { field: 'allocatedUnits', sortable: true, headerName: "Unit", width: 160 },
+              { field: 'qty', sortable: true, editable: true, headerName: "Qty", width: 160 }                            
             ];
 
         // fetch('https://dev-ist-api.bodendev.com/api/ist/v1/partner-stock')
@@ -186,4 +208,12 @@
 <style lang="scss">
   @import "../node_modules/ag-grid-community/dist/styles/ag-grid.css";
   @import "../node_modules/ag-grid-community/dist/styles/ag-theme-alpine.css";
+  
+  .header-button .btn{
+    margin: 5px;
+  }
+
+   .header-button .clear{
+    float: right;
+  }
 </style>

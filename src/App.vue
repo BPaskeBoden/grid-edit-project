@@ -1,7 +1,6 @@
 <template>
     <div id="app">
-       
-       
+        
         <b-card no-body class="mb-1">
             <b-card-header header-tag="header" class="p-1" role="tab">
                 <b-button block href="#" v-b-toggle.accordion-1 variant="danger">BI Selection</b-button> <strong>{{ biSelection }}</strong> 
@@ -56,10 +55,9 @@
                     
                     <b-table ref="table" striped hover sticky-header :items="optionSelection" :fields="fields" @input="tableLoaded">
                     
-
                         <template v-slot:cell()="{ item, field: { key } }">
-                            <b-form-input v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['StyleOption'],key,$event)"></b-form-input>
-                            <b-form-input v-else-if="key==='Total'" v-model="item[key]"></b-form-input>
+                            <b-form-input type="number" v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['BISelection'],item['StyleOption'],key,$event)"></b-form-input>
+                            <b-form-input type="number" v-else-if="key==='Total'" v-model="item[key]"></b-form-input>
                             <span v-else>{{item[key]}}</span>
                         </template>
 
@@ -148,9 +146,23 @@
 
         methods: { 
 
-             updateSizes(style,size,value)
-            {
-                alert(style+':'+size+':'+value);
+            async updateSizes(selection,option,size,value)
+            {                
+                 const request = new Request(
+                    "https://localhost:5001/api/ist/v1/partner-stock/",
+                    {
+                    method: "POST",
+                    headers: {
+                         'Content-Type': 'application/json'
+                     },
+                    body: '['+JSON.stringify({ selection: selection, option: option, size: size.replace('$',''), value: value })+']'
+                    }
+                );
+
+                const res = await fetch(request);
+                const data = await res.json();
+                //this.data = data;
+
             },
 
             async tableLoaded() {
@@ -173,7 +185,6 @@
                 }
 
             },
-
 
             async changeBISelection (selection) {
                 var url = 'https://localhost:5001/api/ist/v1/partner-stock-option/selection='+selection
@@ -204,18 +215,21 @@
                  }
                  this.$data.isLoaded = true
             
-
             },
 
            async getOptionSizes(selectedData)
             {
 
+                var selection = this.$data.biSelection;
                 var rtnData = [];
                 var fields = [];
                 var idFields = ['Category','StyleOption','StyleDesc','Store'];
 
                 $.each(selectedData, async function(index, value) {
-                   var url = "https://localhost:5001/api/ist/v1/partner-stock/["+JSON.stringify(value)+"]";
+                    
+                   var payload = JSON.stringify(value).replace('{','{"selection":"'+selection+'",');
+
+                   var url = "https://localhost:5001/api/ist/v1/partner-stock/["+payload+"]";
                    let response = await fetch(url);
                    let data = await response.json();
 
@@ -223,7 +237,7 @@
                     {
                         $.each(value, function(index, value)
                         {
-                            if(index !=='PartnerStockId')
+                            if(index !=='PartnerStockId' && index !=='BISelection')
                             {
                                 if($.inArray(index, fields) === -1)
                                 {                                    
@@ -234,12 +248,10 @@
                         rtnData.push(value);                    
                     });
                });
-
             
                this.$data.fields = await fields;
                this.$data.optionSelection= await rtnData;
-                           
-               
+                                          
             }   
         },
         
@@ -278,7 +290,14 @@
    .b-table td
   {
       padding: 0.1rem 0.1rem!important;
-    
   }
   
+  input[type='number'] {
+    -moz-appearance:textfield;
+  }
+
+  input::-webkit-outer-spin-button,
+   input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+}
 </style>

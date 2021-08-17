@@ -19,14 +19,14 @@
                                             </b-form-input></span-->
 
                                              <b-form-checkbox
-      id="checkbox-1"
-      v-model="store.checked"
-      name="checkbox-1"
-      value="true"
-      unchecked-value="false"
-     
-    >     
-    </b-form-checkbox>
+                                                id="checkbox-1"
+                                                v-model="store.checked"
+                                                name="checkbox-1"
+                                                value="true"
+                                                unchecked-value="false"
+                                                
+                                                >     
+                                                </b-form-checkbox>
 
     
                                         </div>
@@ -60,6 +60,7 @@ export default {
         event.preventDefault()
         alert(JSON.stringify(this.stockData))
       }
+      
     }
 }
 </script>

@@ -1,219 +1,284 @@
 <template>
-  <div>
-    <div>
-      <div class="header-button">
-        <b-button variant="primary" v-b-modal.modal-1 @click="getSelectedRows()">Allocation</b-button>
-        <b-button variant="success" v-b-modal.modal-2 @click="getSelectedRows()">Replenishment</b-button>
+    <div id="app">
+       
+       
+        <b-card no-body class="mb-1">
+            <b-card-header header-tag="header" class="p-1" role="tab">
+                <b-button block href="#" v-b-toggle.accordion-1 variant="danger">BI Selection</b-button> <strong>{{ biSelection }}</strong> 
+            </b-card-header>
+            <b-collapse id="accordion-1" visible accordion="my-accordion" role="tabpanel">
+                <b-card-body>
+                
+                    <b-form-select v-model="biSelection" :options="biSelections" @change="changeBISelection($event)"></b-form-select>       
+                
+                </b-card-body>
+            </b-collapse>
+        </b-card>
 
-        <b-button class="clear" @click="clearSelectedRows()">Clear</b-button>
+        <b-card no-body class="mb-1">
+            <b-card-header header-tag="header" class="p-1" role="tab">
+                <b-button block href="#" v-b-toggle.accordion-2 variant="warning">Options</b-button>
+            </b-card-header>
+            <b-collapse id="accordion-2" accordion="my-accordion" role="tabpanel">
+                <b-card-body>
 
-      </div>
-      <b-modal id="modal-1" title="Stock Allocation">      
-        <EditForm :stock-data="this.stockselection" />      
-          <template v-slot:modal-footer="{ cancel }">
-            <b-button @click="cancel()">Cancel</b-button>
-          </template>
-      </b-modal>
+                    <ag-grid-vue 
+                        style="width: 100%; height: 800px;"
+                        class="ag-theme-alpine"
+                        id="myGrid"
+                        :gridOptions="gridOptions"
+                        @grid-ready="onGridReady"
+                        :columnDefs="columnDefs"                        
+                        :defaultColDef="defaultColDef"
+                        :suppressRowClickSelection="true"                       
+                        :debug="true"
+                        :rowSelection="rowSelection"                               
+                        :enableRangeSelection="true"
+                        :pagination="true"
+                        :paginationAutoPageSize="true"                    
+                        :floatingFilter="true"
+                        :rowData="optionData">
+                    </ag-grid-vue>
 
-      <b-modal id="modal-2" title="Stock Replenishment">      
-        <ReplenishmentForm :stock-data="this.stockselection" />      
-          <template v-slot:modal-footer="{ cancel }">
-            <b-button @click="cancel()">Cancel</b-button>
-          </template>
-      </b-modal>
+                </b-card-body>
+            </b-collapse>
+        </b-card>
+
+        <b-card no-body class="mb-1">
+            <b-card-header header-tag="header" class="p-1" role="tab">
+                <b-button block href="#" v-b-toggle.accordion-3 variant="success" v-on:click="updateSelected">Sizes
+                    <b-spinner small type="grow" :hidden="isLoaded"></b-spinner>
+                </b-button> 
+
+           </b-card-header>
+            <b-collapse id="accordion-3" accordion="my-accordion" role="tabpanel">
+                <b-card-body>
+                    
+                    <b-table ref="table" striped hover sticky-header :items="optionSelection" :fields="fields" @input="tableLoaded">
+                    
+
+                        <template v-slot:cell()="{ item, field: { key } }">
+                            <b-form-input v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['StyleOption'],key,$event)"></b-form-input>
+                            <b-form-input v-else-if="key==='Total'" v-model="item[key]"></b-form-input>
+                            <span v-else>{{item[key]}}</span>
+                        </template>
+
+                    </b-table>
+                   
+                </b-card-body>
+            </b-collapse>
+        </b-card>
 
     </div>
-
-    <ag-grid-vue style="width: 1860px; height: 800px;"
-        class="ag-theme-alpine"
-        :columnDefs="columnDefs"
-        :rowData="rowData"
-        rowSelection="multiple"
-        @grid-ready="onGridReady">
-    </ag-grid-vue>
-
-  </div>
 </template>
 
 <script>
-    import { AgGridVue } from "ag-grid-vue";
-    import EditForm from '@/components/EditForm';
-    import ReplenishmentForm from '@/components/ReplenishmentForm';
-    
-    export default {
-        name: 'App',
+   import { AgGridVue } from "ag-grid-vue";
+   import axios from 'axios'
+
+   export default {
+       name: 'App',
+
+       components: {
+            AgGridVue,
+        },
+
         data() {
             return {
-                columnDefs: null,
-                rowData: null,
+                gridOptions: null,
                 gridApi: null,
                 columnApi: null,
-  
-                stockselection: [
-                  {
-                    id: 0,
-                    sku: "",
-                    store: "",
-                    style: "",
-                    colour: "",
-                    unit: "",
-                    qty: "",
-                    size: "",
-                    checked: true
-                  }
-                 ],         
+                columnDefs: null,            
+                defaultColDef: null,
+                rowSelection: null,           
+                biSelections: null,
+                biSelection: null,
+                optionData: null,
+                optionSelection: [],
+                items: null,
+                isLoaded: true,
+                fields: [],
+                selectedRow: {},
+                selectedCell: null
+                   
             }
         },
-        components: {
-            AgGridVue,
-            EditForm,
-            ReplenishmentForm
-        },
-        methods: {
-            onGridReady(params) {
-                this.gridApi = params.api;
-                this.columnApi = params.columnApi;
-            },
-            clearSelectedRows()
-            {
-              this.gridApi.deselectAll();
-            },
-            getSelectedRows() {                
-       
-                if(this.gridApi.getSelectedNodes().length===0)
-                {                 
-                    this.gridApi.selectAllFiltered();                                  
-                }
-                const selectedNodes = this.gridApi.getSelectedNodes();
-                const selectedData = selectedNodes.map( node => node.data );
 
-                selectedData.sort(function(a, b){
-                    var a1= a.sizeCode.toLowerCase(), b1= b.sizeCode.toLowerCase();        
-                    if(a1== b1) return 0;
-                    return a1> b1? 1: -1;
-                });
-             
-                selectedData.sort(function(a, b){
-                    var a1= a.store.toLowerCase(), b1= b.store.toLowerCase();        
-                    if(a1== b1) return 0;
-                    return a1> b1? 1: -1;
-                });
-               
-              const styleOptionList = [];
-          
-              var jsonMsg = {};
-              var styleOptions = []
-              jsonMsg.styleOptions = styleOptions;
+        beforeMount() {          
 
-              for(var i=0;i<selectedNodes.length;i++)
-              {
+            this.gridOptions = {};
 
-                if(!_isContains(jsonMsg, "name", selectedData[i].styleOption))
-                {      
-                  // add new style option                      
-                  jsonMsg.styleOptions.push({name: selectedData[i].styleOption});
-                  
-                  // add new size option
-                 var sizes = [];     
-                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes = sizes;
-                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.push({name: selectedData[i].sizeCode});
-
-                  // add new store
-                  var stores = []
-                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores = stores;
-                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores
-                 jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes[jsonMsg.styleOptions[jsonMsg.styleOptions.length-1].sizes.length-1].stores.push({name: selectedData[i].store, unit: selectedData[0].allocatedUnits, qty: selectedData[0].qty});
-
-                }else{
-                  // get current style node
-                  var currentStyleNode = _getNode(jsonMsg.styleOptions,selectedData[i].styleOption);
-                  
-                  //add new size code if it does not exist
-                 if(!_isContains(currentStyleNode, "name", selectedData[i].sizeCode))
-                 {
-                   var stores = []
-                   currentStyleNode.sizes.push({name: selectedData[i].sizeCode, stores: stores});
-                 }
-
-                   // get current size node
-                   var currentSizeNode = _getNode(currentStyleNode.sizes,selectedData[i].sizeCode);
-
-                   //add new store name if it does not exist
-                  if(!_isContains(currentSizeNode, "name", selectedData[i].store))
-                  {
-                    currentSizeNode.stores.push({name: selectedData[i].store, unit: selectedData[i].allocatedUnits, qty: selectedData[i].qty});
-                  }
-
-                }
-           
-          }
-
-          //alert(JSON.stringify(jsonMsg));
-          this.stockselection = jsonMsg;
-
-          },
-
-        },
-        beforeMount() {
             this.columnDefs = [
-              {field: 'partnerStockId', sortable: true, filter: true, checkboxSelection: true, headerName: "Id", width: 160},   
-              { field: 'division', sortable: true, filter: true, headerName: "Div", width: 160 },           
-              { field: 'segment', sortable: true, filter: true, headerName: "Seg", width: 160 },                
-              { field: 'department', sortable: true, filter: true, headerName: "Dpt", width: 160 }, 
-              { field: 'category', sortable: true, filter: true, headerName: "Cat", width: 160 },   
-              { field: 'productSKU', sortable: true, filter: true, headerName: "SKU", width: 160 },  
-              { field: 'store', sortable: true, filter: true, headerName: "Store", width: 160 },  
-              { field: 'styleOption', sortable: true, filter: true, headerName: "Opt", width: 160 },  
-              { field: 'colourDesc', sortable: true, filter: true, headerName: "Col", width: 160 },  
-              { field: 'sizeCode', sortable: true, filter: true, headerName: "Size", width: 160 },  
-              { field: 'allocatedUnits', sortable: true, headerName: "Unit", width: 160 },
-              { field: 'qty', sortable: true, editable: true, headerName: "Qty", width: 160 }                            
+             
+              { field: 'category', 
+                minWidth: 70,
+                checkboxSelection: checkboxSelection,
+                headerCheckboxSelection: headerCheckboxSelection,    
+                headerCheckboxSelectionFilteredOnly: true,   
+                sortable: true, 
+                filter: true, 
+                headerName: "Category",
+                suppressMenu: true,
+                },   
+              { field: 'styleOption', sortable: true, filter: true, headerName: "Option", suppressMenu: true, },  
+              { field: 'styleDesc', sortable: true, filter: true, headerName: "Style", suppressMenu: true, },  
+              { field: 'store', sortable: true, filter: true, headerName: "Store", suppressMenu: true, },  
+                        
             ];
 
-        // fetch('https://dev-ist-api.bodendev.com/api/ist/v1/partner-stock')
-        //   .then(result => result.json())
-        //   .then(rowData => this.rowData = rowData);
-        // }
+            this.defaultColDef = {
+       
+            sortable: true,
+            resizable: true,
+            filter: true,
+            flex: 1,
+            minWidth: 100,
+            };
+            this.rowSelection = 'multiple';
+        
+            fetch('https://localhost:5001/api/ist/v1/bi-selection?partner=jl')
+                .then(result => result.json())
+                .then(biSelections => this.biSelections = biSelections);
+            
+        },
+        async mounted() {
+            this.gridApi = this.gridOptions.api;
+            this.gridColumnApi = this.gridOptions.columnApi;
+        },
 
-        fetch('https://localhost:5001/api/ist/v1/partner-stock')
-          .then(result => result.json())
-          .then(rowData => this.rowData = rowData);
-        }
+        methods: { 
+
+             updateSizes(style,size,value)
+            {
+                alert(style+':'+size+':'+value);
+            },
+
+            async tableLoaded() {
+
+                while(!document.querySelector(".table-b-table-default")) {
+                     await new Promise(r => setTimeout(r, 500));
+                 }
+  
+                var headers = this.$refs.table.$el.querySelectorAll('thead tr th div');
+
+                if(headers.length>0)
+                {
+                    $.each(headers, function(index, value)
+                    {
+                        if(value.innerHTML.substring(0,1)==='$')
+                        {
+                            value.innerHTML = '';
+                        }
+                    });
+                }
+
+            },
+
+
+            async changeBISelection (selection) {
+                var url = 'https://localhost:5001/api/ist/v1/partner-stock-option/selection='+selection
+
+               await fetch(url)
+                    .then(result => result.json())
+                    .then(optionData => this.optionData = optionData);
+
+            },
+
+            onGridReady(params) {
+                    const updateData = (data) => {
+                    this.rowData = optionData;
+                };               
+            },
+
+            async updateSelected()
+            {     
+                this.$data.isLoaded = false;
+
+                const selectedNodes = this.gridApi.getSelectedNodes();
+                const selectedData = selectedNodes.map( node => node.data );
+                              
+                await this.getOptionSizes(selectedData)
+               
+                 while(!document.querySelector(".table-b-table-default")) {
+                     await new Promise(r => setTimeout(r, 500));
+                 }
+                 this.$data.isLoaded = true
+            
+
+            },
+
+           async getOptionSizes(selectedData)
+            {
+
+                var rtnData = [];
+                var fields = [];
+                var idFields = ['Category','StyleOption','StyleDesc','Store'];
+
+                $.each(selectedData, async function(index, value) {
+                   var url = "https://localhost:5001/api/ist/v1/partner-stock/["+JSON.stringify(value)+"]";
+                   let response = await fetch(url);
+                   let data = await response.json();
+
+                    $.each(data, function(index, value)
+                    {
+                        $.each(value, function(index, value)
+                        {
+                            if(index !=='PartnerStockId')
+                            {
+                                if($.inArray(index, fields) === -1)
+                                {                                    
+                                    fields.push(index);
+                                }
+                            }
+                        });
+                        rtnData.push(value);                    
+                    });
+               });
+
+            
+               this.$data.fields = await fields;
+               this.$data.optionSelection= await rtnData;
+                           
+               
+            }   
+        },
+        
+   }
+
+    function checkboxSelection (params) {
+        return params.columnApi.getRowGroupColumns().length === 0;
     }
 
-
-   function _isContains(json, keyname, value) {
-    return Object.keys(json).some(key => {
-            return typeof json[key] === 'object' ? 
-            _isContains(json[key], keyname, value) : key === keyname && json[key] === value;
-        });
-  }
-
-  function _getNode(json,keyname)
-  {
-
-    for(var i=0;i<json.length;i++)
-    {
-      if(json[i].name===keyname)
-      {
-        return json[i];
-      }
+    function headerCheckboxSelection  (params) {
+        return params.columnApi.getRowGroupColumns().length === 0;
     }
-    
-  }
 
 </script>
-
 
 <style lang="scss">
   @import "../node_modules/ag-grid-community/dist/styles/ag-grid.css";
   @import "../node_modules/ag-grid-community/dist/styles/ag-theme-alpine.css";
-  
-  .header-button .btn{
-    margin: 5px;
+
+   .btn-block{
+      width: 160px;
   }
 
-   .header-button .clear{
-    float: right;
+  .b-table-sticky-header
+  {
+      max-height: 700px!important;
   }
+
+  .b-table input
+  {
+      width: 28px!important;
+      padding: 0;
+      text-align: right;
+  }
+
+   .b-table td
+  {
+      padding: 0.1rem 0.1rem!important;
+    
+  }
+  
 </style>

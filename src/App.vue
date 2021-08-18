@@ -54,15 +54,18 @@
                 <b-card-body>
                     
                     <b-table ref="table" striped hover sticky-header :items="optionSelection" :fields="fields" @input="tableLoaded">
-                    
+
                         <template v-slot:cell()="{ item, field: { key } }">
-                            <b-form-input type="number" v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['BISelection'],item['StyleOption'],item['Store'],key,$event,$this)"></b-form-input>
+                            <b-form-input :class="item['StyleOption']+item['Store'].replace(' ','-')" type="number" v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['BISelection'],item['StyleOption'],item['Store'],key,$event,item['StyleOption']+item['Store'].replace(' ','-'))"></b-form-input>
                             <b-form-input type="number" v-else-if="key==='Total'" v-model="item[key]"></b-form-input>
                             <span v-else>{{item[key]}}</span>
                         </template>
 
                     </b-table>
-                   
+                   <div class="button-right">
+                        <b-button block href="#" variant="dark">Approve</b-button>
+                   </div>
+
                 </b-card-body>
             </b-collapse>
         </b-card>
@@ -146,9 +149,9 @@
 
         methods: { 
 
-            async updateSizes(selection,option,store,size,value,ctrl)
-            {            
-         
+            async updateSizes(selection,option,store,size,value,className)
+            {         
+            
                 var payload = [];
                 payload.push({ selection: selection, option: option, store: store, size: size.replace('$',''), value: value });
                 
@@ -167,9 +170,32 @@
                 const data = await res.json();
                 if(data===1)
                 {
-                    alert("do check");
-                }
+                    var total = 0; 
+                    
+                    var elements =  $("input[class*='"+className+"']");
 
+                    $.each(elements, function(index, value)
+                    {
+                        total= total + (value.value)*1;
+                        value.classList.remove('warning');
+                    });
+
+                   var url = 'https://localhost:5001/api/ist/v1/partner-stock/validate/'+option+'/'+total+'/size='+size.replace('$','')+'';
+                  
+                    const valres = await fetch(url);
+                    const valdata = await valres.json();
+                   
+                  
+                    if(!valdata)
+                    {
+                        $.each(elements, function(index, value)
+                        {
+                            value.classList.add('warning');
+                        });
+                    }
+                                          
+                    
+                }
             },
 
             async tableLoaded() {
@@ -209,6 +235,7 @@
 
             async updateSelected()
             {     
+    
                 this.$data.isLoaded = false;
 
                 const selectedNodes = this.gridApi.getSelectedNodes();
@@ -310,6 +337,7 @@
   .b-table-sticky-header
   {
       max-height: 700px!important;
+      min-width: 1900px!important;
   }
 
   .b-table input
@@ -339,6 +367,16 @@ span.sr-only
 }
 
 .text-right
+{
+    text-align: right;
+}
+
+.warning{
+    color: red!important;
+    background-color: yellow!important;
+}
+
+.button-right
 {
     text-align: right;
 }

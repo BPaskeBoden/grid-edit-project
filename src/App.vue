@@ -56,7 +56,7 @@
                     <b-table ref="table" striped hover sticky-header :items="optionSelection" :fields="fields" @input="tableLoaded">
                     
                         <template v-slot:cell()="{ item, field: { key } }">
-                            <b-form-input type="number" v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['BISelection'],item['StyleOption'],key,$event)"></b-form-input>
+                            <b-form-input type="number" v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['BISelection'],item['StyleOption'],item['Store'],key,$event,$this)"></b-form-input>
                             <b-form-input type="number" v-else-if="key==='Total'" v-model="item[key]"></b-form-input>
                             <span v-else>{{item[key]}}</span>
                         </template>
@@ -146,8 +146,12 @@
 
         methods: { 
 
-            async updateSizes(selection,option,size,value)
-            {                
+            async updateSizes(selection,option,store,size,value,ctrl)
+            {            
+         
+                var payload = [];
+                payload.push({ selection: selection, option: option, store: store, size: size.replace('$',''), value: value });
+                
                  const request = new Request(
                     "https://localhost:5001/api/ist/v1/partner-stock/",
                     {
@@ -155,13 +159,16 @@
                     headers: {
                          'Content-Type': 'application/json'
                      },
-                    body: '['+JSON.stringify({ selection: selection, option: option, size: size.replace('$',''), value: value })+']'
+                    body: '['+JSON.stringify({ selection: selection, option: option, store: store, size: size.replace('$',''), value: value })+']'
                     }
                 );
 
                 const res = await fetch(request);
                 const data = await res.json();
-                //this.data = data;
+                if(data===1)
+                {
+                    alert("do check");
+                }
 
             },
 
@@ -194,7 +201,6 @@
                     .then(optionData => this.optionData = optionData);
 
             },
-
             onGridReady(params) {
                     const updateData = (data) => {
                     this.rowData = optionData;
@@ -240,8 +246,34 @@
                             if(index !=='PartnerStockId' && index !=='BISelection')
                             {
                                 if($.inArray(index, fields) === -1)
-                                {                                    
-                                    fields.push(index);
+                                {          
+                                    switch(index)
+                                    {
+                                        case "Category":
+                                        fields.push({key: index, sortable: true, label: 'Cat'});
+                                        break;
+
+                                        case "StyleOption":
+                                        fields.push({key: index, sortable: true, label: 'Option'});
+                                        break;
+
+                                        case "StyleDesc":
+                                        fields.push({key: index, sortable: true, label: 'Style'});
+                                        break;
+
+                                        case "Store":
+                                        fields.push({key: index, sortable: true});
+                                        break;
+
+                                        case "Total":
+                                        fields.push({key: index, sortable: false});
+                                        break;
+
+                                        default:
+                                        fields.push({key: index, sortable: false, thClass: 'text-right', tdClass: 'text-right'});
+
+                                    }                         
+                                    
                                 }
                             }
                         });
@@ -251,7 +283,7 @@
             
                this.$data.fields = await fields;
                this.$data.optionSelection= await rtnData;
-                                          
+                                    
             }   
         },
         
@@ -297,7 +329,17 @@
   }
 
   input::-webkit-outer-spin-button,
-   input::-webkit-inner-spin-button {
+  input::-webkit-inner-spin-button {
     -webkit-appearance: none;
+  }
+
+span.sr-only
+{
+    display: none;
+}
+
+.text-right
+{
+    text-align: right;
 }
 </style>

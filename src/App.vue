@@ -20,6 +20,13 @@
             </b-card-header>
             <b-collapse id="accordion-2" accordion="my-accordion" role="tabpanel">
                 <b-card-body>
+                    <div class="button-right">
+                        <b-button block variant="dark"v-b-modal.modal-approve>Approve</b-button>
+
+                        <b-modal id="modal-approve" title="Partner Stock Approval" @ok="approveBISelection">
+                            <p class="my-4">Are you sure you want to Approve <span class="high-light">{{biSelection}}</span>?</p>                            
+                        </b-modal>
+                   </div>
 
                     <ag-grid-vue 
                         style="width: 100%; height: 800px;"
@@ -36,6 +43,7 @@
                         :pagination="true"
                         :paginationAutoPageSize="true"                    
                         :floatingFilter="true"
+                        :rowClassRules="rowClassRules"
                         :rowData="optionData">
                     </ag-grid-vue>
 
@@ -57,15 +65,12 @@
 
                         <template v-slot:cell()="{ item, field: { key } }">
                             <b-form-input :class="item['StyleOption']+item['Store'].replace(' ','-')" type="number" v-if="key.substring(0,1)==='$'" v-model="item[key]" v-on:change="updateSizes(item['BISelection'],item['StyleOption'],item['Store'],key,$event,item['StyleOption']+item['Store'].replace(' ','-'))"></b-form-input>
-                            <b-form-input type="number" v-else-if="key==='Total'" v-model="item[key]"></b-form-input>
+                            <b-form-input type="number" v-else-if="key==='Split'" v-model="item[key]"></b-form-input>
                             <span v-else>{{item[key]}}</span>
                         </template>
 
                     </b-table>
-                   <div class="button-right">
-                        <b-button block href="#" variant="dark">Approve</b-button>
-                   </div>
-
+                
                 </b-card-body>
             </b-collapse>
         </b-card>
@@ -100,8 +105,7 @@
                 isLoaded: true,
                 fields: [],
                 selectedRow: {},
-                selectedCell: null
-                   
+                selectedCell: null                   
             }
         },
 
@@ -123,8 +127,7 @@
                 },   
               { field: 'styleOption', sortable: true, filter: true, headerName: "Option", suppressMenu: true, },  
               { field: 'styleDesc', sortable: true, filter: true, headerName: "Style", suppressMenu: true, },  
-              { field: 'store', sortable: true, filter: true, headerName: "Store", suppressMenu: true, },  
-                        
+              { field: 'store', sortable: true, filter: true, headerName: "Store", suppressMenu: true, },                                        
             ];
 
             this.defaultColDef = {
@@ -136,10 +139,17 @@
             minWidth: 100,
             };
             this.rowSelection = 'multiple';
-        
+            
             fetch('https://localhost:5001/api/ist/v1/bi-selection?partner=jl')
                 .then(result => result.json())
                 .then(biSelections => this.biSelections = biSelections);
+
+              this.rowClassRules = {
+                'dirty-row': (params) => {
+                    var dirty = params.data.dirty;
+                    return dirty >0;
+                }
+              }
             
         },
         async mounted() {
@@ -152,9 +162,6 @@
             async updateSizes(selection,option,store,size,value,className)
             {         
             
-                var payload = [];
-                payload.push({ selection: selection, option: option, store: store, size: size.replace('$',''), value: value });
-                
                  const request = new Request(
                     "https://localhost:5001/api/ist/v1/partner-stock/",
                     {
@@ -162,7 +169,7 @@
                     headers: {
                          'Content-Type': 'application/json'
                      },
-                    body: '['+JSON.stringify({ selection: selection, option: option, store: store, size: size.replace('$',''), value: value })+']'
+                    body: '['+JSON.stringify({ action: 'updateSize', selection: selection, option: option, store: store, size: size.replace('$',''), value: value })+']'
                     }
                 );
 
@@ -210,7 +217,7 @@
                 {
                     $.each(headers, function(index, value)
                     {
-                        if(value.innerHTML.substring(0,1)==='$')
+                        if(value.innerHTML.substring(0,1)==='$' || value.innerHTML==='Total')
                         {
                             value.innerHTML = '';
                         }
@@ -227,6 +234,25 @@
                     .then(optionData => this.optionData = optionData);
 
             },
+
+             async approveBISelection () {
+             
+                 const request = new Request(
+                    "https://localhost:5001/api/ist/v1/partner-stock/",
+                    {
+                    method: "POST",
+                    headers: {
+                         'Content-Type': 'application/json'
+                     },
+                    body: '['+JSON.stringify({ action: 'approveSelection', selection: this.$data.biSelection })+']'
+                    }
+                );
+
+                const res = await fetch(request);
+                const data = await res.json();
+
+            },
+        
             onGridReady(params) {
                     const updateData = (data) => {
                     this.rowData = optionData;
@@ -256,7 +282,6 @@
                 var selection = this.$data.biSelection;
                 var rtnData = [];
                 var fields = [];
-                var idFields = ['Category','StyleOption','StyleDesc','Store'];
 
                 $.each(selectedData, async function(index, value) {
                     
@@ -270,20 +295,24 @@
                     {
                         $.each(value, function(index, value)
                         {
-                            if(index !=='PartnerStockId' && index !=='BISelection')
+                            if(index !=='PartnerStockId' && index !=='BISelection' && index !=='Dirty')
                             {
                                 if($.inArray(index, fields) === -1)
                                 {          
                                     switch(index)
                                     {
-                                        case "Category":
-                                        fields.push({key: index, sortable: true, label: 'Cat'});
-                                        break;
-
                                         case "StyleOption":
                                         fields.push({key: index, sortable: true, label: 'Option'});
                                         break;
 
+                                        case "S5Category":
+                                        fields.push({key: index, sortable: true, label: 'Cat'});
+                                        break;
+
+                                        case "S5Department":
+                                        fields.push({key: index, sortable: true, label: 'Dept'});
+                                        break;
+                                    
                                         case "StyleDesc":
                                         fields.push({key: index, sortable: true, label: 'Style'});
                                         break;
@@ -293,6 +322,10 @@
                                         break;
 
                                         case "Total":
+                                        fields.push({key: index, sortable: false});
+                                        break;
+
+                                        case "Split":
                                         fields.push({key: index, sortable: false});
                                         break;
 
@@ -332,6 +365,7 @@
 
    .btn-block{
       width: 160px;
+      margin-bottom: 5px;
   }
 
   .b-table-sticky-header
@@ -379,5 +413,15 @@ span.sr-only
 .button-right
 {
     text-align: right;
+}
+
+.dirty-row{
+    background-color: pink!important;
+    //border: thin solid pink!important;
+}
+
+.high-light
+{
+    font-weight: bold;
 }
 </style>
